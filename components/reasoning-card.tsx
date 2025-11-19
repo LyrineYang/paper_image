@@ -28,7 +28,7 @@ export function ReasoningCard({
   inputImage = "/placeholder.svg?height=100&width=150",
   videoFrames = Array(8).fill("/placeholder.svg?height=100&width=150"),
   difficulty = "Modeling",
-  modelName = "GPT-4V-Turbo",
+  modelName = "Sora 2",
   modelIcon = "/placeholder.svg?height=40&width=40",
   scores = [
     { module: "R1", score: 8 },
