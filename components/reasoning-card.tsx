@@ -1,20 +1,14 @@
 "use client"
 
-import { Download, Sparkles } from 'lucide-react'
+import { Download } from 'lucide-react'
 import Image from "next/image"
 import { useRef } from 'react'
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
 import { Button } from "@/components/ui/button"
 
 interface ModuleScore {
   module: string
   score: number
+  tsr?: number
 }
 
 interface ReasoningCardProps {
@@ -32,7 +26,7 @@ interface ReasoningCardProps {
 export function ReasoningCard({
   prompt = "Zoom in on the black bag with the Apple logo to focus on the logo's color. Static shot.",
   inputImage = "/placeholder.svg?height=100&width=150",
-  videoFrames = Array(4).fill("/placeholder.svg?height=100&width=150"),
+  videoFrames = Array(8).fill("/placeholder.svg?height=100&width=150"),
   difficulty = "Modeling",
   modelName = "GPT-4V-Turbo",
   modelIcon = "/placeholder.svg?height=40&width=40",
@@ -52,13 +46,6 @@ export function ReasoningCard({
   tsr = 35.30
 }: Partial<ReasoningCardProps>) {
   const cardRef = useRef<HTMLDivElement>(null)
-
-  const chartConfig = {
-    score: {
-      label: "Score",
-      color: "#A4BEC2", // Updated to user's requested color
-    },
-  } satisfies ChartConfig
 
   const handleExport = async () => {
     if (!cardRef.current) return
@@ -95,20 +82,20 @@ export function ReasoningCard({
         导出图片
       </Button>
 
-      <div ref={cardRef} className="w-full max-w-6xl mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden font-sans">
+      <div ref={cardRef} className="w-full max-w-[1600px] mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden font-sans">
         <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50/30">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="flex flex-col gap-2 w-full md:w-[45%] flex-shrink-0">
+          <div className="flex flex-row gap-4 justify-between items-center">
+            <div className="flex flex-col gap-2 w-full md:w-[50%] flex-shrink-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-xs font-serif font-semibold text-gray-700">Prompt</h2>
                 <div className="flex items-center gap-2 scale-90 origin-left">
                   <div 
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
-                    style={difficulty === 'Modeling' || difficulty === 'Moderate' ? {
-                      backgroundColor: 'rgba(164, 190, 194, 0.15)', // Light version of #A4BEC2
-                      color: '#526D72', // Darker version for readability
+                    style={{
+                      backgroundColor: 'rgba(164, 190, 194, 0.15)',
+                      color: '#526D72',
                       borderColor: 'rgba(164, 190, 194, 0.5)'
-                    } : {}}
+                    }}
                   >
                     <span className="font-mono">{difficulty}</span>
                   </div>
@@ -124,35 +111,35 @@ export function ReasoningCard({
 
             <div className="flex flex-col gap-1 flex-grow min-w-0 pt-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-serif font-semibold text-gray-700">Checklist Scores (R1-R10)</h3>
+                <h3 className="text-xs font-serif font-semibold text-gray-700">Checklist Scores</h3>
               </div>
-              <ChartContainer config={chartConfig} className="h-[100px] w-full">
-                <BarChart data={scores} margin={{ top: 5, right: 0, bottom: 0, left: 0 }} barCategoryGap="15%">
-                  <CartesianGrid strokeDasharray="2 2" vertical={false} stroke="#e0e0e0" />
-                  <XAxis 
-                    dataKey="module" 
-                    tick={{ fontSize: 9, fill: '#6b7280' }} 
-                    tickLine={false}
-                    axisLine={{ stroke: '#e5e7eb' }} 
-                    interval={0}
-                  />
-                  <YAxis 
-                    hide
-                    domain={[0, 10]} 
-                    ticks={[0, 2, 4, 6, 8, 10]}
-                  />
-                  <ChartTooltip 
-                    content={<ChartTooltipContent />} 
-                    cursor={{ fill: 'transparent' }}
-                  />
-                  <Bar 
-                    dataKey="score" 
-                    fill="#A4BEC2" // Using the requested color for bars
-                    radius={[0, 0, 0, 0]}
-                    barSize={16}
-                  />
-                </BarChart>
-              </ChartContainer>
+              <div className="h-[100px] w-full relative mt-1">
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                  {[10, 8, 6, 4, 2, 0].map((tick) => (
+                    <div key={tick} className="w-full border-b border-dashed border-gray-200 h-0" />
+                  ))}
+                </div>
+                
+                <div className="absolute inset-0 flex items-end justify-between px-2 pb-[1px]">
+                  {scores.map((item, index) => (
+                    <div key={index} className="flex flex-col items-center gap-1 flex-1 group">
+                      <div className="relative w-full flex justify-center h-[85px] items-end">
+                        <div 
+                          className="w-[12px] bg-[#A4BEC2] transition-all duration-300 group-hover:opacity-80"
+                          style={{ height: `${(item.score / 10) * 100}%` }}
+                        >
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                            {item.score}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-[9px] text-gray-500 font-medium">{item.module}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="absolute bottom-[18px] left-0 right-0 border-b border-gray-200"></div>
+              </div>
             </div>
 
             <div className="flex flex-col justify-between flex-shrink-0 h-[100px] min-w-[120px]">
@@ -178,30 +165,28 @@ export function ReasoningCard({
         </div>
 
         <div className="p-4">
-          <div className="flex flex-row gap-4 md:gap-6 items-center pb-2 md:pb-0">
-            <div className="flex flex-col gap-1.5 flex-shrink-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-serif font-semibold text-gray-700">Input Image</h3>
-              </div>
+          <div className="flex flex-row gap-4 items-end">
+            <div className="flex flex-col gap-1.5 flex-shrink-0" style={{ width: 'calc((100% - 64px) / 9)' }}>
+              <h3 className="text-xs font-serif font-semibold text-gray-700 whitespace-nowrap">Input Image</h3>
               <div className="relative group">
-                <div className="overflow-hidden rounded-lg border-2 border-gray-200 shadow-sm hover:border-blue-300 transition-colors">
+                <div className="overflow-hidden rounded-lg border-2 border-gray-200 shadow-sm hover:border-blue-300 transition-colors bg-gray-100">
                   <Image
                     src={inputImage || "/placeholder.svg"}
                     alt="Input"
-                    width={120}
-                    height={90}
-                    className="object-cover w-[120px] h-[90px]"
+                    width={160}
+                    height={120}
+                    className="object-cover w-full h-auto aspect-[4/3]"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col items-center justify-center flex-shrink-0 gap-1 pt-6">
+            <div className="flex flex-col items-center justify-end flex-shrink-0 gap-1 pb-2 w-16">
               <div className="relative group">
                 <div className="absolute inset-0 bg-blue-100 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity"></div>
                 <div className="relative w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm overflow-hidden">
                   <Image 
-                    src={modelIcon || "/placeholder.svg?height=40&width=40"} 
+                    src={modelIcon || "/placeholder.svg"} 
                     alt="Model Icon" 
                     width={40} 
                     height={40} 
@@ -209,32 +194,25 @@ export function ReasoningCard({
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-0.5">
-                <div className="w-8 h-0.5 bg-gray-200"></div>
-                <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-gray-300"></div>
+              <div className="flex items-center gap-0.5 w-full">
+                <div className="h-[2px] w-full bg-gray-300"></div>
+                <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-gray-400"></div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5 flex-grow min-w-0">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-serif font-semibold text-gray-700">Generated Video</h3>
-                <span className="text-[10px] text-gray-400 font-mono">4 frames • 00:06</span>
-              </div>
-              
-              <div className="flex gap-2">
-                {videoFrames.slice(0, 4).map((frame, index) => (
-                  <div key={index} className="relative group flex-shrink-0">
+            <div className="flex flex-col gap-1.5 flex-grow">
+              <h3 className="text-xs font-serif font-semibold text-gray-700 whitespace-nowrap">Generated Video</h3>
+              <div className="grid grid-cols-8 gap-1.5">
+                {videoFrames.slice(0, 8).map((frame, index) => (
+                  <div key={index} className="relative group">
                     <div className="overflow-hidden rounded-md border-2 border-gray-200 shadow-sm transition-all duration-200 hover:scale-105 hover:shadow-md hover:border-blue-300 hover:z-10 bg-gray-50">
                       <Image
                         src={frame || "/placeholder.svg"}
                         alt={`Frame ${index + 1}`}
-                        width={120}
-                        height={90}
-                        className="object-cover w-[120px] h-[90px]"
+                        width={160}
+                        height={120}
+                        className="object-cover w-full h-auto aspect-[4/3]"
                       />
-                    </div>
-                    <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[9px] text-white font-mono font-semibold">
-                      {index + 1}
                     </div>
                   </div>
                 ))}

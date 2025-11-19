@@ -16,6 +16,10 @@ export default function Page() {
           "/placeholder.svg?height=80&width=120&text=Frame+2",
           "/placeholder.svg?height=80&width=120&text=Frame+3",
           "/placeholder.svg?height=80&width=120&text=Frame+4",
+          "/placeholder.svg?height=80&width=120&text=Frame+5",
+          "/placeholder.svg?height=80&width=120&text=Frame+6",
+          "/placeholder.svg?height=80&width=120&text=Frame+7",
+          "/placeholder.svg?height=80&width=120&text=Frame+8",
         ]}
         difficulty="Modeling"
         modelName="Sora-2"
