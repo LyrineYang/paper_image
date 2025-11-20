@@ -1,14 +1,33 @@
 "use client"
 
-import { Download } from 'lucide-react'
+import { Download, Save } from 'lucide-react'
 import Image from "next/image"
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+
 import { Button } from "@/components/ui/button"
+
+const CATEGORY_COLORS: Record<string, string> = {
+  perception: "#EAA3B1",
+  modeling: "#A4BEC2",
+  manipulation: "#F2C399",
+  reasoning: "#B0A3C7"
+}
+
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '')
+  if (normalized.length !== 6) {
+    return hex
+  }
+  const bigint = parseInt(normalized, 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 interface ModuleScore {
   module: string
   score: number
-  tsr?: number
 }
 
 interface ReasoningCardProps {
@@ -20,7 +39,11 @@ interface ReasoningCardProps {
   modelIcon?: string
   scores?: ModuleScore[]
   totalScore?: number
+  checklistLength?: number
   tsr?: number
+  showActionButtons?: boolean
+  cardId?: string
+  transparentIcon?: boolean
 }
 
 export function ReasoningCard({
@@ -43,23 +66,50 @@ export function ReasoningCard({
     { module: "R10", score: 7 },
   ],
   totalScore = 7.33,
-  tsr = 35.30
+  checklistLength = scores.length,
+  tsr = 35.30,
+  showActionButtons = true,
+  cardId,
+  transparentIcon = false
 }: Partial<ReasoningCardProps>) {
   const cardRef = useRef<HTMLDivElement>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const difficultyKey = difficulty.toLowerCase?.() || "modeling"
+  const categoryColor = CATEGORY_COLORS[difficultyKey] || CATEGORY_COLORS.modeling
+  const difficultyBg = hexToRgba(categoryColor, 0.15)
+  const difficultyBorder = hexToRgba(categoryColor, 0.5)
+
+  const finalScore = (() => {
+    if (typeof totalScore === "number" && checklistLength) {
+      return totalScore / checklistLength
+    }
+
+    if (scores.length) {
+      const sum = scores.reduce((acc, item) => acc + (item.score || 0), 0)
+      return sum / scores.length
+    }
+
+    return 0
+  })()
+
+  const captureCard = async () => {
+    if (!cardRef.current) return null
+
+    const html2canvas = (await import('html2canvas')).default
+
+    return html2canvas(cardRef.current, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      logging: false,
+      useCORS: true,
+    })
+  }
 
   const handleExport = async () => {
-    if (!cardRef.current) return
-    
     try {
-      const html2canvas = (await import('html2canvas')).default
-      
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false,
-        useCORS: true,
-      })
-      
+      const canvas = await captureCard()
+      if (!canvas) return
+
       const link = document.createElement('a')
       link.download = `reasoning-card-${Date.now()}.png`
       link.href = canvas.toDataURL('image/png')
@@ -70,17 +120,64 @@ export function ReasoningCard({
     }
   }
 
+  const handleServerExport = async () => {
+    if (isSaving) return
+    try {
+      setIsSaving(true)
+      const canvas = await captureCard()
+      if (!canvas) return
+
+      const dataUrl = canvas.toDataURL('image/png')
+      const response = await fetch('/api/export-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          imageData: dataUrl,
+          filename: `reasoning-card-${Date.now()}.png`
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('保存失败')
+      }
+
+      const result = await response.json()
+      alert(`已保存至 ${result.path}`)
+    } catch (error) {
+      console.error('保存失败:', error)
+      alert('保存失败，请重试')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
-    <div className="relative">
-      <Button
-        onClick={handleExport}
-        size="sm"
-        variant="outline"
-        className="absolute -top-12 right-0 z-10 gap-2"
-      >
-        <Download className="w-4 h-4" />
-        导出图片
-      </Button>
+    <div className="relative" data-card-id={cardId}>
+      {showActionButtons && (
+        <div className="absolute -top-12 right-0 z-10 flex flex-col gap-2">
+          <Button
+            onClick={handleExport}
+            size="sm"
+            variant="outline"
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            导出图片
+          </Button>
+          <Button
+            onClick={handleServerExport}
+            size="sm"
+            variant="default"
+            className="gap-2"
+            disabled={isSaving}
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? '保存中...' : '保存到项目'}
+          </Button>
+        </div>
+      )}
 
       <div ref={cardRef} className="w-full max-w-[1600px] mx-auto bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden font-sans">
         <div className="px-4 pt-3 pb-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50/30">
@@ -92,9 +189,9 @@ export function ReasoningCard({
                   <div 
                     className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border"
                     style={{
-                      backgroundColor: 'rgba(164, 190, 194, 0.15)',
-                      color: '#526D72',
-                      borderColor: 'rgba(164, 190, 194, 0.5)'
+                      backgroundColor: difficultyBg,
+                      color: categoryColor,
+                      borderColor: difficultyBorder
                     }}
                   >
                     <span className="font-mono">{difficulty}</span>
@@ -125,8 +222,11 @@ export function ReasoningCard({
                     <div key={index} className="flex flex-col items-center gap-1 flex-1 group">
                       <div className="relative w-full flex justify-center h-[85px] items-end">
                         <div 
-                          className="w-[12px] bg-[#A4BEC2] transition-all duration-300 group-hover:opacity-80"
-                          style={{ height: `${(item.score / 10) * 100}%` }}
+                          className="w-[12px] transition-all duration-300 group-hover:opacity-80"
+                          style={{
+                            height: `${(item.score / 10) * 100}%`,
+                            backgroundColor: categoryColor
+                          }}
                         >
                           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
                             {item.score}
@@ -150,13 +250,13 @@ export function ReasoningCard({
                 <div className="flex flex-col items-center justify-center flex-grow w-full py-1 gap-1.5 px-2">
                   <div className="flex items-center justify-center w-full gap-1">
                     <span className="text-[11px] text-gray-500 font-serif font-medium">Score =</span>
-                    <span className="text-sm font-bold text-gray-900">{totalScore.toFixed(2)}</span>
+                    <span className="text-sm font-bold text-gray-900">{finalScore.toFixed(2)}</span>
                     <span className="text-[10px] text-gray-400 font-medium">/10</span>
                   </div>
                   <div className="w-16 h-px bg-gray-100"></div>
                   <div className="flex items-center justify-center w-full gap-1">
                     <span className="text-[11px] text-gray-500 font-serif font-medium">TSR =</span>
-                    <span className="text-sm font-bold text-gray-900">{tsr.toFixed(1)}%</span>
+                    <span className="text-sm font-bold text-gray-900">{tsr?.toFixed(1)}%</span>
                   </div>
                 </div>
               </div>
@@ -175,6 +275,7 @@ export function ReasoningCard({
                     alt="Input"
                     width={160}
                     height={120}
+                    unoptimized
                     className="object-cover w-full h-auto aspect-[4/3]"
                   />
                 </div>
@@ -183,13 +284,22 @@ export function ReasoningCard({
 
             <div className="flex flex-col items-center justify-end flex-shrink-0 gap-1 pb-2 w-16">
               <div className="relative group">
-                <div className="absolute inset-0 bg-blue-100 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity"></div>
-                <div className="relative w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shadow-sm overflow-hidden">
+                {!transparentIcon && (
+                  <div className="absolute inset-0 bg-blue-100 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                )}
+                <div
+                  className={`relative w-10 h-10 rounded-full flex items-center justify-center overflow-hidden ${
+                    transparentIcon
+                      ? 'bg-transparent border border-transparent shadow-none'
+                      : 'bg-white border border-gray-200 shadow-sm'
+                  }`}
+                >
                   <Image 
                     src={modelIcon || "/placeholder.svg"} 
                     alt="Model Icon" 
                     width={40} 
                     height={40} 
+                    unoptimized
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -211,6 +321,7 @@ export function ReasoningCard({
                         alt={`Frame ${index + 1}`}
                         width={160}
                         height={120}
+                        unoptimized
                         className="object-cover w-full h-auto aspect-[4/3]"
                       />
                     </div>
